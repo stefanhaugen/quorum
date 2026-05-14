@@ -24,10 +24,10 @@ quorum_chat: error message explaining what went wrong.
 import sys
 import time
 
-from information_module import run_information_module
-from analytics_module import run_analytics_module
-from design_module import run_design_module
-from icd import validate_block
+from .information_module import run_information_module
+from .analytics_module import run_analytics_module
+from .design_module import run_design_module
+from .icd import validate_block
 
 
 def main():

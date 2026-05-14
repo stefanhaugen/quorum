@@ -34,7 +34,7 @@ import seaborn as sns
 import shap
 from pathlib import Path
 
-from config import (
+from .config import (
     CA_ISO3,
     ISO2_TO_ISO3,
     NAME_MAP,
@@ -44,7 +44,7 @@ from config import (
     OVERLAP_YEAR_MAX,
 )
 
-from icd import (
+from .icd import (
     AnalyticsBundle,
     MonthlyMigrationBlock,
     LaggedPanelBundle,

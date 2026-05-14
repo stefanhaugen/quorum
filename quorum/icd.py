@@ -57,7 +57,7 @@ from typing import Dict, List, Optional
 import numpy as np
 import pandas as pd
 
-from config import (
+from .config import (
     CA_ISO3,
     FEATURE_LABELS,
     LAG_YEARS,

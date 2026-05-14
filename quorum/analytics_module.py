@@ -43,7 +43,7 @@ from sklearn.preprocessing import StandardScaler
 import statsmodels.formula.api as smf
 import shap
 
-from config import (
+from .config import (
     CA_ISO3,
     LAG_YEARS,
     NAME_MAP,
@@ -52,7 +52,7 @@ from config import (
     PCA_COMPONENTS,
 )
 
-from icd import (
+from .icd import (
     LaggedPanelBundle,
     MonthlyMigrationBlock,
     CorrelationResult,

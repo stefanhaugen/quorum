@@ -36,7 +36,7 @@ import requests
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from config import (
+from .config import (
     MIGRATION_PATH,
     CA_ISO2,
     CA_ISO3,
@@ -55,7 +55,7 @@ from config import (
     FEATURE_LABELS,
 )
 
-from icd import (
+from .icd import (
     MonthlyMigrationBlock,
     AnnualMigrationBlock,
     FoodSecurityBlock,
