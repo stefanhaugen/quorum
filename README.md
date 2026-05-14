@@ -21,6 +21,22 @@ No existing WEF nexus model treats migration as a thematic focus. The result is 
 
 ---
 
+## Status and scope
+
+QUORUM is a **proof-of-concept implementation of a systems engineering framework**, built as a master's thesis in Systems Engineering. The contribution is the architecture and the analytical workflow, not the inferential weight of the case-study numbers.
+
+The case study in this repository covers seven Central American Dry Corridor countries across a three-year window, which yields a panel of **fourteen country-year observations**. That is a deliberately small dataset. With fourteen observations, the Random Forest, SHAP rankings, and fixed-effects coefficients reported by the pipeline are demonstrations of the workflow, not statistically powered claims about migration drivers. The framework is engineered to behave correctly with more data; the small panel is what the current open-source environmental and mobility datasets afford for this region and time window.
+
+If you are evaluating this repository:
+
+- For the **engineering layer** (architecture, Interface Control Documents, CI, test harness, pluggable data adapters, reproducible config), this is the canonical version.
+- For the **analytical results** (specific p-values, SHAP rankings, beta coefficients), treat them as illustrative of the workflow on a constrained sample, not as defensible inference about Central American migration. The thesis discusses these limitations in detail.
+- For the **methodological rigor** (leave-one-country-out cross-validation, constrained Random Forest hyperparameters, both train and cross-validation scores reported, fixed-effects with country dummies), that is the discipline a small panel demands and is deliberately on display.
+
+The roadmap items (monthly-resolution data, World Bank WDI adapter, Meta migration adapter, SPEI drought integration) are the path to making the same architecture answer inferentially defensible questions at the regional scale.
+
+![Monthly outbound migration from the Central American Dry Corridor, 2019 to 2022. The first output figure of the QUORUM pipeline.](docs/figures/migration_overview.png)
+
 ## Quickstart
 
 ```bash
