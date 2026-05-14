@@ -10,7 +10,6 @@ Run with:
 
 from __future__ import annotations
 
-import numpy as np
 import pandas as pd
 import pytest
 
@@ -19,11 +18,9 @@ from quorum.icd import (
     FoodPriceBlock,
     FoodSecurityBlock,
     HAPIFeatureBlock,
-    LaggedPanelBundle,
     MonthlyMigrationBlock,
     validate_block,
 )
-
 
 # ----- fixtures ------------------------------------------------------------
 
