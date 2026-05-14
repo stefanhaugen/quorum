@@ -3,101 +3,99 @@ QUORUM Configuration
 ====================
 Single source of truth for all system-level parameters.
 
-Every configurable assumption lives here: file paths, country scope,
-HAPI API settings, analysis settings, and visual identity.
+All paths and runtime knobs come from environment variables with sensible
+defaults. Copy .env.example to .env and edit to match your machine.
 
-CHANGELOG (v2 API Integration)
-------------------------------
-- ADDED: HAPI_BASE_URL, HAPI_APP_ID, HAPI_ENDPOINTS for HDX HAPI
-- ADDED: HAPI_CACHE_DIR for caching API responses during development
-- ADDED: FOOD_SECURITY_FEATURES and FOOD_PRICE_FEATURES replacing WDI
-- CHANGED: DATA_DIR now points to thesis_data/for_import/ subfolder
-- CHANGED: MIGRATION_PATH updated to for_import/ subfolder
-- REMOVED: FEATURE_CODES dict (replaced by HAPI-derived feature labels)
-
-When documenting parameter choices in the thesis, reference this file
-by section. Each constant group maps to a traceable design decision.
+CHANGELOG (v2.1 Externalized Config)
+------------------------------------
+- CHANGED: All file paths now read from QUORUM_* environment variables
+- CHANGED: HAPI parameters now read from QUORUM_HAPI_* environment variables
+- ADDED: Analysis window now configurable via QUORUM_OVERLAP_YEAR_*
+- ADDED: Cache TTL via QUORUM_CACHE_TTL_HOURS
+- RETAINED: Every public name imported elsewhere (ISO2_TO_ISO3, FEATURE_LABELS, etc.)
 """
 
+from __future__ import annotations
+
+import os
 from pathlib import Path
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    # python-dotenv is optional; envs may also be set by the shell or CI.
+    pass
+
+
+def _env_path(key: str, default: str) -> Path:
+    return Path(os.environ.get(key, default)).expanduser().resolve()
+
+
+def _env_int(key: str, default: int) -> int:
+    return int(os.environ.get(key, default))
+
+
+def _env_float(key: str, default: float) -> float:
+    return float(os.environ.get(key, default))
+
 
 # ─────────────────────────────────────────────────────────────────────
-# FILE PATHS (updated: now uses for_import/ subfolder)
+# FILE PATHS
 # ─────────────────────────────────────────────────────────────────────
-DATA_DIR = Path(
-    "/Users/stefanhaugen/Documents/Stefan Haugen/CSU/Thesis/"
-    "thesis_data/for_import"
-)
-MIGRATION_PATH = DATA_DIR / "international_migration_flow.csv"
+DATA_DIR = _env_path("QUORUM_DATA_DIR", "./data")
+OUTPUT_DIR = _env_path("QUORUM_OUTPUT_DIR", "./outputs")
 
-OUTPUT_DIR = Path(
-    "/Users/stefanhaugen/Documents/Stefan Haugen/CSU/Thesis/"
-    "thesis_data/quorum_outputs"
+MIGRATION_FILENAME = os.environ.get(
+    "QUORUM_MIGRATION_FILENAME", "international_migration_flow.csv"
 )
+MIGRATION_PATH = DATA_DIR / MIGRATION_FILENAME
 
-# Legacy WDI path kept for backward compatibility if needed
+# Legacy WDI path kept for backward compatibility
 WDI_PATH = DATA_DIR / "20_25_merged.xlsx"
 
 
 # ─────────────────────────────────────────────────────────────────────
 # HDX HAPI API CONFIGURATION
-# Base: https://hapi.humdata.org
-# Docs: https://hapi.humdata.org/docs
 # ─────────────────────────────────────────────────────────────────────
-HAPI_BASE_URL = "https://hapi.humdata.org"
-HAPI_APP_ID = "quorum_thesis"      # required app_identifier parameter
-HAPI_PAGE_LIMIT = 1000             # max records per request page
-HAPI_TIMEOUT = 30                  # seconds per request
+HAPI_BASE_URL = os.environ.get(
+    "QUORUM_HAPI_BASE_URL", "https://hapi.humdata.org"
+)
+HAPI_APP_ID = os.environ.get("QUORUM_HAPI_APP_ID", "quorum_thesis")
+HAPI_PAGE_LIMIT = _env_int("QUORUM_HAPI_PAGE_LIMIT", 1000)
+HAPI_TIMEOUT = _env_int("QUORUM_HAPI_TIMEOUT", 30)
 
 HAPI_ENDPOINTS = {
     "food_security": "/api/v2/food-security-nutrition-poverty/food-security",
     "food_prices": "/api/v2/food-security-nutrition-poverty/food-prices-market-monitor",
 }
 
-# Cache directory for API responses (avoids repeated calls during dev)
 HAPI_CACHE_DIR = OUTPUT_DIR / "hapi_cache"
+CACHE_TTL_HOURS = _env_int("QUORUM_CACHE_TTL_HOURS", 168)  # 7 days
 
 
 # ─────────────────────────────────────────────────────────────────────
 # GEOGRAPHIC SCOPE
-# Central American Dry Corridor: 7 countries
 # ─────────────────────────────────────────────────────────────────────
 ISO2_TO_ISO3 = {
-    "BZ": "BLZ",
-    "CR": "CRI",
-    "GT": "GTM",
-    "HN": "HND",
-    "NI": "NIC",
-    "PA": "PAN",
-    "SV": "SLV",
+    "BZ": "BLZ", "CR": "CRI", "GT": "GTM", "HN": "HND",
+    "NI": "NIC", "PA": "PAN", "SV": "SLV",
 }
-
 CA_ISO2 = list(ISO2_TO_ISO3.keys())
 CA_ISO3 = list(ISO2_TO_ISO3.values())
 
 NAME_MAP = {
-    "BLZ": "Belize",
-    "CRI": "Costa Rica",
-    "GTM": "Guatemala",
-    "HND": "Honduras",
-    "NIC": "Nicaragua",
-    "PAN": "Panama",
+    "BLZ": "Belize", "CRI": "Costa Rica", "GTM": "Guatemala",
+    "HND": "Honduras", "NIC": "Nicaragua", "PAN": "Panama",
     "SLV": "El Salvador",
 }
 
 
 # ─────────────────────────────────────────────────────────────────────
-# HAPI FEATURE DEFINITIONS
-# These replace the former WDI FEATURE_CODES.
-# Food security features are derived from IPC phase populations.
-# Food price features are derived from WFP commodity price data.
+# HAPI FEATURE DEFINITIONS (unchanged)
 # ─────────────────────────────────────────────────────────────────────
-
-# IPC phases we extract population fractions for
 IPC_PHASES_OF_INTEREST = ["1", "2", "3", "4", "5", "3+"]
 
-# Human-readable labels for food security features (generated per phase)
 FOOD_SECURITY_FEATURES = [
     "IPC Phase 3+ Fraction",
     "IPC Phase 3+ Population",
@@ -108,7 +106,6 @@ FOOD_SECURITY_FEATURES = [
     "IPC Phase 5 Fraction",
 ]
 
-# Food price features (aggregated across commodities per country-year)
 FOOD_PRICE_FEATURES = [
     "Mean Staple Price (USD)",
     "Max Staple Price (USD)",
@@ -116,20 +113,18 @@ FOOD_PRICE_FEATURES = [
     "Num Commodities Tracked",
 ]
 
-# Combined feature labels for the analytical pipeline
 FEATURE_LABELS = FOOD_SECURITY_FEATURES + FOOD_PRICE_FEATURES
 
 
 # ─────────────────────────────────────────────────────────────────────
 # ANALYSIS PARAMETERS
 # ─────────────────────────────────────────────────────────────────────
-LAG_YEARS = [0, 1, 2]          # same-year, 1-year lag, 2-year lag
-PRIMARY_LAG = 1                 # main analytical dataset per thesis theory
-OVERLAP_YEAR_MIN = 2020         # migration-feature overlap window start
-OVERLAP_YEAR_MAX = 2022         # migration-feature overlap window end
-SIGNIFICANCE_THRESHOLD = 0.05   # p-value cutoff for flagging significance
+LAG_YEARS = [0, 1, 2]
+PRIMARY_LAG = _env_int("QUORUM_PRIMARY_LAG", 1)
+OVERLAP_YEAR_MIN = _env_int("QUORUM_OVERLAP_YEAR_MIN", 2020)
+OVERLAP_YEAR_MAX = _env_int("QUORUM_OVERLAP_YEAR_MAX", 2022)
+SIGNIFICANCE_THRESHOLD = _env_float("QUORUM_SIGNIFICANCE_THRESHOLD", 0.05)
 
-# Random Forest hyperparameters (constrained for small-N honesty)
 RF_PARAMS = {
     "n_estimators": 200,
     "max_depth": 3,
@@ -138,19 +133,21 @@ RF_PARAMS = {
     "random_state": 42,
     "n_jobs": -1,
 }
-PCA_COMPONENTS = 3              # dimensionality reduction target
+PCA_COMPONENTS = 3
 
 
 # ─────────────────────────────────────────────────────────────────────
-# VISUAL IDENTITY
-# Consistent palette across all Design Module outputs
+# LOGGING
+# ─────────────────────────────────────────────────────────────────────
+LOG_LEVEL = os.environ.get("QUORUM_LOG_LEVEL", "INFO").upper()
+LOG_FORMAT = os.environ.get("QUORUM_LOG_FORMAT", "human").lower()
+
+
+# ─────────────────────────────────────────────────────────────────────
+# VISUAL IDENTITY (unchanged)
 # ─────────────────────────────────────────────────────────────────────
 PALETTE = {
-    "BLZ": "#1f77b4",
-    "CRI": "#ff7f0e",
-    "GTM": "#2ca02c",
-    "HND": "#d62728",
-    "NIC": "#9467bd",
-    "PAN": "#8c564b",
+    "BLZ": "#1f77b4", "CRI": "#ff7f0e", "GTM": "#2ca02c",
+    "HND": "#d62728", "NIC": "#9467bd", "PAN": "#8c564b",
     "SLV": "#e377c2",
 }
