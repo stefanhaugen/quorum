@@ -35,7 +35,6 @@ If you are evaluating this repository:
 
 The roadmap items (monthly-resolution data, World Bank WDI adapter, Meta migration adapter, SPEI drought integration) are the path to making the same architecture answer inferentially defensible questions at the regional scale.
 
-![Monthly outbound migration from the Central American Dry Corridor, 2019 to 2022. The first output figure of the QUORUM pipeline.](docs/figures/migration_overview.png)
 
 ## Quickstart
 
