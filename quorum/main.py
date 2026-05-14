@@ -24,10 +24,9 @@ quorum_chat: error message explaining what went wrong.
 import sys
 import time
 
-from .information_module import run_information_module
 from .analytics_module import run_analytics_module
 from .design_module import run_design_module
-from .icd import validate_block
+from .information_module import run_information_module
 
 
 def main():
@@ -39,10 +38,7 @@ def main():
     print("=" * 60)
 
     if not use_cache:
-        print(
-            "\n  [NOTE] Running with --no-cache. "
-            "All API data will be fetched fresh."
-        )
+        print("\n  [NOTE] Running with --no-cache. All API data will be fetched fresh.")
 
     t0 = time.time()
 
@@ -53,10 +49,7 @@ def main():
         print(f"\n  [TIMING] Information Module: {time.time() - t1:.1f}s")
     except (FileNotFoundError, ValueError) as e:
         print(f"\n{e}")
-        print(
-            "\nquorum_chat: Information Module failed. "
-            "The pipeline cannot continue."
-        )
+        print("\nquorum_chat: Information Module failed. The pipeline cannot continue.")
         sys.exit(1)
 
     # ── Analytics Module ───────────────────────────────────────────
@@ -80,9 +73,7 @@ def main():
         run_design_module(analytics)
         print(f"\n  [TIMING] Design Module: {time.time() - t3:.1f}s")
     except Exception as e:
-        print(
-            f"\nquorum_chat: Design Module encountered an error: {e}"
-        )
+        print(f"\nquorum_chat: Design Module encountered an error: {e}")
         print(
             "  The analytical results are still valid. "
             "Check the output directory for partial outputs."

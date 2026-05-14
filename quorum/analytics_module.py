@@ -28,44 +28,42 @@ knowledge of file paths, visualization, or data loading.
 from __future__ import annotations
 
 import warnings
+
 warnings.filterwarnings("ignore")
 
 import numpy as np
 import pandas as pd
+import shap
+import statsmodels.formula.api as smf
 from scipy import stats
+from sklearn.decomposition import PCA
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.impute import SimpleImputer
-from sklearn.decomposition import PCA
-from sklearn.model_selection import LeaveOneGroupOut, cross_val_score
 from sklearn.metrics import r2_score
+from sklearn.model_selection import LeaveOneGroupOut, cross_val_score
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
-import statsmodels.formula.api as smf
-import shap
 
 from .config import (
-    CA_ISO3,
-    LAG_YEARS,
     NAME_MAP,
-    SIGNIFICANCE_THRESHOLD,
-    RF_PARAMS,
     PCA_COMPONENTS,
+    RF_PARAMS,
+    SIGNIFICANCE_THRESHOLD,
 )
-
 from .icd import (
-    LaggedPanelBundle,
-    MonthlyMigrationBlock,
+    AnalyticsBundle,
     CorrelationResult,
     FixedEffectsResult,
+    LaggedPanelBundle,
+    MonthlyMigrationBlock,
     RandomForestResult,
-    AnalyticsBundle,
     validate_block,
 )
-
 
 # ═════════════════════════════════════════════════════════════════════
 # AM-REQ-001: LAGGED CROSS-CORRELATIONS
 # ═════════════════════════════════════════════════════════════════════
+
 
 def run_correlations(
     bundle: LaggedPanelBundle,
@@ -89,17 +87,19 @@ def run_correlations(
                 continue
             r, p = stats.pearsonr(sub[feat], sub[target])
             rs, ps = stats.spearmanr(sub[feat], sub[target])
-            records.append({
-                "Feature": feat,
-                "Lag (years)": lag,
-                "Pearson_r": round(r, 3),
-                "Pearson_p": round(p, 4),
-                "Spearman_r": round(rs, 3),
-                "Spearman_p": round(ps, 4),
-                "N": len(sub),
-                "Sig_Pearson": "Y" if p < threshold else "",
-                "Sig_Spearman": "Y" if ps < threshold else "",
-            })
+            records.append(
+                {
+                    "Feature": feat,
+                    "Lag (years)": lag,
+                    "Pearson_r": round(r, 3),
+                    "Pearson_p": round(p, 4),
+                    "Spearman_r": round(rs, 3),
+                    "Spearman_p": round(ps, 4),
+                    "N": len(sub),
+                    "Sig_Pearson": "Y" if p < threshold else "",
+                    "Sig_Spearman": "Y" if ps < threshold else "",
+                }
+            )
 
     if not records:
         print(
@@ -110,12 +110,19 @@ def run_correlations(
 
     df = pd.DataFrame(records)
     if df.empty:
-        df = pd.DataFrame(columns=[
-            "Feature", "Lag (years)",
-            "Pearson_r", "Pearson_p",
-            "Spearman_r", "Spearman_p",
-            "N", "Sig_Pearson", "Sig_Spearman",
-        ])
+        df = pd.DataFrame(
+            columns=[
+                "Feature",
+                "Lag (years)",
+                "Pearson_r",
+                "Pearson_p",
+                "Spearman_r",
+                "Spearman_p",
+                "N",
+                "Sig_Pearson",
+                "Sig_Spearman",
+            ]
+        )
 
     sig_count = int((df["Pearson_p"] < threshold).sum()) if len(df) else 0
 
@@ -134,6 +141,7 @@ def run_correlations(
 # AM-REQ-002: FIXED-EFFECTS PANEL REGRESSION
 # ═════════════════════════════════════════════════════════════════════
 
+
 def run_fixed_effects(
     bundle: LaggedPanelBundle,
     threshold: float = SIGNIFICANCE_THRESHOLD,
@@ -151,8 +159,7 @@ def run_fixed_effects(
 
     # Filter to features with sufficient non-null coverage
     available = [
-        c for c in bundle.feature_columns
-        if c in panel.columns and panel[c].notna().sum() >= 10
+        c for c in bundle.feature_columns if c in panel.columns and panel[c].notna().sum() >= 10
     ]
 
     if not available:
@@ -161,9 +168,9 @@ def run_fixed_effects(
             "observations in the primary panel. Fixed-effects regression "
             "cannot proceed. Check HAPI data coverage."
         )
-        empty_df = pd.DataFrame(columns=[
-            "Feature", "coef", "se", "p", "t", "R2", "N", "Significant"
-        ])
+        empty_df = pd.DataFrame(
+            columns=["Feature", "coef", "se", "p", "t", "R2", "N", "Significant"]
+        )
         return FixedEffectsResult(coefficients=empty_df, significant_count=0)
 
     # Standardize features
@@ -172,9 +179,7 @@ def run_fixed_effects(
     panel_scaled[available] = scaler.fit_transform(
         panel[available].fillna(panel[available].median())
     )
-    panel_scaled["log_outbound"] = np.log1p(
-        panel_scaled[bundle.target_column]
-    )
+    panel_scaled["log_outbound"] = np.log1p(panel_scaled[bundle.target_column])
 
     # Run bivariate regressions with country FE
     results = {}
@@ -190,9 +195,7 @@ def run_fixed_effects(
             )
             panel_scaled[safe] = panel_scaled[feat]
             formula = f"log_outbound ~ {safe} + C(iso3)"
-            model = smf.ols(
-                formula, data=panel_scaled.dropna(subset=[feat])
-            ).fit()
+            model = smf.ols(formula, data=panel_scaled.dropna(subset=[feat])).fit()
             results[feat] = {
                 "coef": round(model.params[safe], 4),
                 "se": round(model.bse[safe], 4),
@@ -202,10 +205,7 @@ def run_fixed_effects(
                 "N": int(model.nobs),
             }
         except Exception as e:
-            print(
-                f"quorum_chat: Fixed-effects regression failed for "
-                f"'{feat}': {e}"
-            )
+            print(f"quorum_chat: Fixed-effects regression failed for '{feat}': {e}")
 
     if not results:
         print(
@@ -213,16 +213,12 @@ def run_fixed_effects(
             "This may indicate insufficient data variation or "
             "collinearity with country dummies."
         )
-        empty_df = pd.DataFrame(columns=[
-            "Feature", "coef", "se", "p", "t", "R2", "N", "Significant"
-        ])
+        empty_df = pd.DataFrame(
+            columns=["Feature", "coef", "se", "p", "t", "R2", "N", "Significant"]
+        )
         return FixedEffectsResult(coefficients=empty_df, significant_count=0)
 
-    df = (
-        pd.DataFrame(results)
-        .T.reset_index()
-        .rename(columns={"index": "Feature"})
-    )
+    df = pd.DataFrame(results).T.reset_index().rename(columns={"index": "Feature"})
     df["Significant"] = df["p"] < threshold
     df = df.sort_values("coef", key=abs, ascending=False)
 
@@ -239,6 +235,7 @@ def run_fixed_effects(
 # ═════════════════════════════════════════════════════════════════════
 # AM-REQ-003 to AM-REQ-006: PCA + RANDOM FOREST + SHAP
 # ═════════════════════════════════════════════════════════════════════
+
 
 def run_random_forest(
     bundle: LaggedPanelBundle,
@@ -257,8 +254,7 @@ def run_random_forest(
 
     panel = bundle.primary_panel.copy()
     feat_cols = [
-        c for c in bundle.feature_columns
-        if c in panel.columns and panel[c].notna().sum() >= 10
+        c for c in bundle.feature_columns if c in panel.columns and panel[c].notna().sum() >= 10
     ]
 
     if len(feat_cols) < 2:
@@ -285,12 +281,14 @@ def run_random_forest(
         )
 
     # Build strict pipeline (no leakage)
-    pipeline = Pipeline([
-        ("imputer", SimpleImputer(strategy="median")),
-        ("scaler", StandardScaler()),
-        ("pca", PCA(n_components=n_components)),
-        ("rf", RandomForestRegressor(**RF_PARAMS)),
-    ])
+    pipeline = Pipeline(
+        [
+            ("imputer", SimpleImputer(strategy="median")),
+            ("scaler", StandardScaler()),
+            ("pca", PCA(n_components=n_components)),
+            ("rf", RandomForestRegressor(**RF_PARAMS)),
+        ]
+    )
 
     # Leave-one-country-out cross-validation
     logo = LeaveOneGroupOut()
@@ -306,22 +304,19 @@ def run_random_forest(
         train_r2 = r2_score(y, y_pred)
         cv_r2 = np.array([train_r2])
     else:
-        cv_r2 = cross_val_score(
-            pipeline, X, y, groups=groups, cv=logo, scoring="r2"
-        )
+        cv_r2 = cross_val_score(pipeline, X, y, groups=groups, cv=logo, scoring="r2")
         pipeline.fit(X, y)
         y_pred = pipeline.predict(X)
         train_r2 = r2_score(y, y_pred)
 
     print(
-        f"       Train R2: {train_r2:.3f}  |  "
-        f"LOGO-CV R2: {cv_r2.mean():.3f} +/- {cv_r2.std():.3f}"
+        f"       Train R2: {train_r2:.3f}  |  LOGO-CV R2: {cv_r2.mean():.3f} +/- {cv_r2.std():.3f}"
     )
 
     # Extract pipeline stages
     pca_step = pipeline.named_steps["pca"]
     rf_step = pipeline.named_steps["rf"]
-    pc_names = [f"PC{i+1}" for i in range(pca_step.n_components_)]
+    pc_names = [f"PC{i + 1}" for i in range(pca_step.n_components_)]
 
     # PCA loadings table
     loadings = pd.DataFrame(
@@ -332,9 +327,7 @@ def run_random_forest(
 
     print("       PCA component interpretation:")
     for col in loadings.columns:
-        top2 = (
-            loadings[col].abs().sort_values(ascending=False).head(2).index
-        )
+        top2 = loadings[col].abs().sort_values(ascending=False).head(2).index
         print(f"         {col} driven by: '{top2[0]}' and '{top2[1]}'")
 
     # Compute intermediate representations for SHAP
@@ -367,7 +360,7 @@ def run_random_forest(
     )
     validate_block(result, "ICD-AM-003: RandomForestResult")
 
-    print(f"       Top SHAP drivers:")
+    print("       Top SHAP drivers:")
     for feat, val in mean_shap.head(5).items():
         print(f"         {feat}: {val:.4f}")
 
@@ -377,6 +370,7 @@ def run_random_forest(
 # ═════════════════════════════════════════════════════════════════════
 # PUBLIC ENTRY POINT
 # ═════════════════════════════════════════════════════════════════════
+
 
 def run_analytics_module(
     monthly: MonthlyMigrationBlock,

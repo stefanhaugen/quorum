@@ -86,6 +86,15 @@ select = [
 ]
 ignore = ["E501"]  # line length is enforced by formatter
 
+
+[tool.ruff.lint.per-file-ignores]
+# warnings filter must precede imports to silence sklearn/scipy import-time noise
+"quorum/analytics_module.py" = ["E402"]
+# REQUIRED_COLUMNS is an intentional class constant, not a dataclass field
+"quorum/icd.py" = ["RUF012"]
+# plt.subplots returns fig we intentionally discard for some figures
+"quorum/design_module.py" = ["RUF059"]
+
 [tool.ruff.format]
 quote-style = "double"
 

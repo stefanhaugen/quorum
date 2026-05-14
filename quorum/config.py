@@ -22,6 +22,7 @@ from pathlib import Path
 
 try:
     from dotenv import load_dotenv
+
     load_dotenv()
 except ImportError:
     # python-dotenv is optional; envs may also be set by the shell or CI.
@@ -46,9 +47,7 @@ def _env_float(key: str, default: float) -> float:
 DATA_DIR = _env_path("QUORUM_DATA_DIR", "./data")
 OUTPUT_DIR = _env_path("QUORUM_OUTPUT_DIR", "./outputs")
 
-MIGRATION_FILENAME = os.environ.get(
-    "QUORUM_MIGRATION_FILENAME", "international_migration_flow.csv"
-)
+MIGRATION_FILENAME = os.environ.get("QUORUM_MIGRATION_FILENAME", "international_migration_flow.csv")
 MIGRATION_PATH = DATA_DIR / MIGRATION_FILENAME
 
 # Legacy WDI path kept for backward compatibility
@@ -58,9 +57,7 @@ WDI_PATH = DATA_DIR / "20_25_merged.xlsx"
 # ─────────────────────────────────────────────────────────────────────
 # HDX HAPI API CONFIGURATION
 # ─────────────────────────────────────────────────────────────────────
-HAPI_BASE_URL = os.environ.get(
-    "QUORUM_HAPI_BASE_URL", "https://hapi.humdata.org"
-)
+HAPI_BASE_URL = os.environ.get("QUORUM_HAPI_BASE_URL", "https://hapi.humdata.org")
 HAPI_APP_ID = os.environ.get("QUORUM_HAPI_APP_ID", "quorum_thesis")
 HAPI_PAGE_LIMIT = _env_int("QUORUM_HAPI_PAGE_LIMIT", 1000)
 HAPI_TIMEOUT = _env_int("QUORUM_HAPI_TIMEOUT", 30)
@@ -78,15 +75,24 @@ CACHE_TTL_HOURS = _env_int("QUORUM_CACHE_TTL_HOURS", 168)  # 7 days
 # GEOGRAPHIC SCOPE
 # ─────────────────────────────────────────────────────────────────────
 ISO2_TO_ISO3 = {
-    "BZ": "BLZ", "CR": "CRI", "GT": "GTM", "HN": "HND",
-    "NI": "NIC", "PA": "PAN", "SV": "SLV",
+    "BZ": "BLZ",
+    "CR": "CRI",
+    "GT": "GTM",
+    "HN": "HND",
+    "NI": "NIC",
+    "PA": "PAN",
+    "SV": "SLV",
 }
 CA_ISO2 = list(ISO2_TO_ISO3.keys())
 CA_ISO3 = list(ISO2_TO_ISO3.values())
 
 NAME_MAP = {
-    "BLZ": "Belize", "CRI": "Costa Rica", "GTM": "Guatemala",
-    "HND": "Honduras", "NIC": "Nicaragua", "PAN": "Panama",
+    "BLZ": "Belize",
+    "CRI": "Costa Rica",
+    "GTM": "Guatemala",
+    "HND": "Honduras",
+    "NIC": "Nicaragua",
+    "PAN": "Panama",
     "SLV": "El Salvador",
 }
 
@@ -147,7 +153,11 @@ LOG_FORMAT = os.environ.get("QUORUM_LOG_FORMAT", "human").lower()
 # VISUAL IDENTITY (unchanged)
 # ─────────────────────────────────────────────────────────────────────
 PALETTE = {
-    "BLZ": "#1f77b4", "CRI": "#ff7f0e", "GTM": "#2ca02c",
-    "HND": "#d62728", "NIC": "#9467bd", "PAN": "#8c564b",
+    "BLZ": "#1f77b4",
+    "CRI": "#ff7f0e",
+    "GTM": "#2ca02c",
+    "HND": "#d62728",
+    "NIC": "#9467bd",
+    "PAN": "#8c564b",
     "SLV": "#e377c2",
 }

@@ -24,32 +24,32 @@ Functions correspond to DM requirements:
 
 from __future__ import annotations
 
+import matplotlib
 import numpy as np
 import pandas as pd
-import matplotlib
+
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt
+from pathlib import Path
+
 import matplotlib.patches as mpatches
+import matplotlib.pyplot as plt
 import seaborn as sns
 import shap
-from pathlib import Path
 
 from .config import (
     CA_ISO3,
-    ISO2_TO_ISO3,
     NAME_MAP,
-    PALETTE,
     OUTPUT_DIR,
-    OVERLAP_YEAR_MIN,
     OVERLAP_YEAR_MAX,
+    OVERLAP_YEAR_MIN,
+    PALETTE,
 )
-
 from .icd import (
     AnalyticsBundle,
-    MonthlyMigrationBlock,
-    LaggedPanelBundle,
     CorrelationResult,
     FixedEffectsResult,
+    LaggedPanelBundle,
+    MonthlyMigrationBlock,
     RandomForestResult,
 )
 
@@ -63,6 +63,7 @@ def _ensure_output_dir(output_dir: Path = OUTPUT_DIR) -> Path:
 # ═════════════════════════════════════════════════════════════════════
 # DM-REQ-001: MIGRATION TIME-SERIES OVERVIEW
 # ═════════════════════════════════════════════════════════════════════
+
 
 def plot_migration_overview(
     monthly: MonthlyMigrationBlock,
@@ -88,7 +89,9 @@ def plot_migration_overview(
     fig, axes = plt.subplots(2, 2, figsize=(14, 10))
     fig.suptitle(
         "Central America: Migration Overview",
-        fontsize=14, fontweight="bold", y=0.98,
+        fontsize=14,
+        fontweight="bold",
+        y=0.98,
     )
 
     # (a) Monthly outbound by country
@@ -96,8 +99,11 @@ def plot_migration_overview(
     for iso3 in CA_ISO3:
         sub = data[data["iso3"] == iso3].sort_values("year_month")
         ax.plot(
-            range(len(sub)), sub["outbound_total"],
-            label=NAME_MAP[iso3], color=PALETTE[iso3], linewidth=1.8,
+            range(len(sub)),
+            sub["outbound_total"],
+            label=NAME_MAP[iso3],
+            color=PALETTE[iso3],
+            linewidth=1.8,
         )
     ref = data[data["iso3"] == "GTM"].sort_values("year_month")
     months = ref["year_month"].tolist()
@@ -115,13 +121,10 @@ def plot_migration_overview(
     bottom = np.zeros(len(years))
     for iso3 in CA_ISO3:
         vals = [
-            annual[
-                (annual["iso3"] == iso3) & (annual["year"] == y)
-            ]["outbound_total"].sum()
+            annual[(annual["iso3"] == iso3) & (annual["year"] == y)]["outbound_total"].sum()
             for y in years
         ]
-        ax.bar(years, vals, bottom=bottom, label=NAME_MAP[iso3],
-               color=PALETTE[iso3])
+        ax.bar(years, vals, bottom=bottom, label=NAME_MAP[iso3], color=PALETTE[iso3])
         bottom += np.array(vals)
     ax.set_title("Annual Total Outbound (Stacked)", fontweight="bold")
     ax.set_ylabel("Migrants")
@@ -130,15 +133,22 @@ def plot_migration_overview(
 
     # (c) Outbound to US vs other
     ax = axes[1, 0]
-    agg = annual.groupby("year").agg(
-        total=("outbound_total", "sum"),
-        to_us=("outbound_to_us", "sum"),
-    ).reset_index()
+    agg = (
+        annual.groupby("year")
+        .agg(
+            total=("outbound_total", "sum"),
+            to_us=("outbound_to_us", "sum"),
+        )
+        .reset_index()
+    )
     agg["other"] = agg["total"] - agg["to_us"]
     ax.bar(agg["year"], agg["to_us"], label="To USA", color="#c0392b")
     ax.bar(
-        agg["year"], agg["other"], bottom=agg["to_us"],
-        label="Other Destinations", color="#7f8c8d",
+        agg["year"],
+        agg["other"],
+        bottom=agg["to_us"],
+        label="Other Destinations",
+        color="#7f8c8d",
     )
     ax.set_title("Regional Outbound: USA vs Other", fontweight="bold")
     ax.set_ylabel("Migrants")
@@ -152,13 +162,13 @@ def plot_migration_overview(
     width = 0.2
     for i, year in enumerate(years):
         vals = [
-            net[(net["iso3"] == c) & (net["year"] == year)][
-                "net_outbound"
-            ].sum()
-            for c in CA_ISO3
+            net[(net["iso3"] == c) & (net["year"] == year)]["net_outbound"].sum() for c in CA_ISO3
         ]
         ax.bar(
-            x + i * width, vals, width, label=str(year),
+            x + i * width,
+            vals,
+            width,
+            label=str(year),
             color=plt.cm.RdYlGn_r(i / max(len(years) - 1, 1)),
         )
     ax.set_xticks(x + width)
@@ -181,11 +191,12 @@ def plot_migration_overview(
 # DM-REQ-002: CORRELATION HEATMAP
 # ═════════════════════════════════════════════════════════════════════
 
+
 def plot_correlation_heatmap(
     result: CorrelationResult,
     target_label: str = "Total Outbound Migration",
     output_dir: Path = OUTPUT_DIR,
-) -> Optional[Path]:
+) -> Path | None:
     """Heatmap of Pearson r by feature and lag, with significance stars."""
     print("  [DM] Plotting correlation heatmap...")
 
@@ -199,17 +210,20 @@ def plot_correlation_heatmap(
     output_dir = _ensure_output_dir(output_dir)
 
     df = result.records
-    pivot_r = df.pivot_table(
-        index="Feature", columns="Lag (years)", values="Pearson_r"
-    )
-    pivot_p = df.pivot_table(
-        index="Feature", columns="Lag (years)", values="Pearson_p"
-    )
+    pivot_r = df.pivot_table(index="Feature", columns="Lag (years)", values="Pearson_r")
+    pivot_p = df.pivot_table(index="Feature", columns="Lag (years)", values="Pearson_p")
 
     fig, ax = plt.subplots(figsize=(8, max(6, len(pivot_r) * 0.45)))
     sns.heatmap(
-        pivot_r, annot=True, fmt=".2f", cmap="RdBu_r", center=0,
-        vmin=-1, vmax=1, linewidths=0.5, ax=ax,
+        pivot_r,
+        annot=True,
+        fmt=".2f",
+        cmap="RdBu_r",
+        center=0,
+        vmin=-1,
+        vmax=1,
+        linewidths=0.5,
+        ax=ax,
         cbar_kws={"label": "Pearson r"},
     )
 
@@ -218,8 +232,12 @@ def plot_correlation_heatmap(
             p = pivot_p.loc[feat, lag] if feat in pivot_p.index else 1
             if pd.notna(p) and p < 0.05:
                 ax.text(
-                    j + 0.85, i + 0.25, "*",
-                    fontsize=12, color="black", fontweight="bold",
+                    j + 0.85,
+                    i + 0.25,
+                    "*",
+                    fontsize=12,
+                    color="black",
+                    fontweight="bold",
                 )
 
     ax.set_title(
@@ -242,17 +260,17 @@ def plot_correlation_heatmap(
 # DM-REQ-003: FIXED-EFFECTS COEFFICIENT PLOT
 # ═════════════════════════════════════════════════════════════════════
 
+
 def plot_fixed_effects(
     result: FixedEffectsResult,
     output_dir: Path = OUTPUT_DIR,
-) -> Optional[Path]:
+) -> Path | None:
     """Horizontal bar chart of FE regression coefficients with CI bars."""
     print("  [DM] Plotting fixed-effects coefficient chart...")
 
     if result.coefficients.empty:
         print(
-            "quorum_chat: Skipping fixed-effects plot because no "
-            "regression results are available."
+            "quorum_chat: Skipping fixed-effects plot because no regression results are available."
         )
         return None
 
@@ -261,15 +279,17 @@ def plot_fixed_effects(
     df = result.coefficients
     fig, ax = plt.subplots(figsize=(9, max(5, len(df) * 0.4)))
     y_pos = range(len(df))
-    colors = [
-        "#c0392b" if s else "#95a5a6" for s in df["Significant"]
-    ]
+    colors = ["#c0392b" if s else "#95a5a6" for s in df["Significant"]]
 
     ax.barh(list(y_pos), df["coef"], color=colors, alpha=0.8, height=0.6)
     ax.errorbar(
-        df["coef"], list(y_pos),
-        xerr=1.96 * df["se"], fmt="none", color="black",
-        capsize=3, linewidth=1,
+        df["coef"],
+        list(y_pos),
+        xerr=1.96 * df["se"],
+        fmt="none",
+        color="black",
+        capsize=3,
+        linewidth=1,
     )
     ax.axvline(0, color="black", linewidth=1)
     ax.set_yticks(list(y_pos))
@@ -297,6 +317,7 @@ def plot_fixed_effects(
 # DM-REQ-004: SHAP PLOTS
 # ═════════════════════════════════════════════════════════════════════
 
+
 def plot_shap_importance(
     result: RandomForestResult,
     output_dir: Path = OUTPUT_DIR,
@@ -308,7 +329,8 @@ def plot_shap_importance(
     ms = result.mean_shap
     fig, ax = plt.subplots(figsize=(8, max(5, len(ms) * 0.4)))
     bars = ax.barh(
-        ms.index[::-1], ms.values[::-1],
+        ms.index[::-1],
+        ms.values[::-1],
         color=plt.cm.RdYlGn_r(np.linspace(0.2, 0.8, len(ms))),
         alpha=0.85,
     )
@@ -319,10 +341,13 @@ def plot_shap_importance(
         fontweight="bold",
     )
     ax.grid(axis="x", alpha=0.3)
-    for bar, val in zip(bars, ms.values[::-1]):
+    for bar, val in zip(bars, ms.values[::-1], strict=False):
         ax.text(
-            val + 0.001, bar.get_y() + bar.get_height() / 2,
-            f"{val:.3f}", va="center", fontsize=9,
+            val + 0.001,
+            bar.get_y() + bar.get_height() / 2,
+            f"{val:.3f}",
+            va="center",
+            fontsize=9,
         )
     plt.tight_layout()
 
@@ -341,9 +366,7 @@ def plot_shap_beeswarm(
     print("  [DM] Plotting SHAP beeswarm...")
     output_dir = _ensure_output_dir(output_dir)
 
-    fig, ax = plt.subplots(
-        figsize=(10, max(6, len(result.feature_names) * 0.5))
-    )
+    fig, ax = plt.subplots(figsize=(10, max(6, len(result.feature_names) * 0.5)))
     shap.summary_plot(
         result.shap_values_original,
         result.X_scaled,
@@ -353,7 +376,8 @@ def plot_shap_beeswarm(
     plt.title(
         "SHAP Beeswarm: Impact of HAPI Features\n"
         "(colour = standardised feature value, back-projected through PCA)",
-        fontweight="bold", pad=15,
+        fontweight="bold",
+        pad=15,
     )
     plt.tight_layout()
 
@@ -367,6 +391,7 @@ def plot_shap_beeswarm(
 # ═════════════════════════════════════════════════════════════════════
 # DM-REQ-005: PARTIAL DEPENDENCE PLOTS
 # ═════════════════════════════════════════════════════════════════════
+
 
 def plot_partial_dependence_pca(
     result: RandomForestResult,
@@ -386,26 +411,35 @@ def plot_partial_dependence_pca(
         axes = [axes]
     fig.suptitle(
         "Partial Dependence: Principal Components vs Outbound Migration",
-        fontweight="bold", fontsize=12, y=1.05,
+        fontweight="bold",
+        fontsize=12,
+        y=1.05,
     )
 
-    for i, (ax, pc) in enumerate(zip(axes, pc_names)):
+    for i, (ax, pc) in enumerate(zip(axes, pc_names, strict=False)):
         vals = result.X_pca[:, i]
         for iso3 in CA_ISO3:
             mask = countries == iso3
             if mask.sum() == 0:
                 continue
             ax.scatter(
-                vals[mask], np.expm1(y[mask]),
-                label=NAME_MAP[iso3], color=PALETTE[iso3],
-                alpha=0.85, s=60, zorder=3,
+                vals[mask],
+                np.expm1(y[mask]),
+                label=NAME_MAP[iso3],
+                color=PALETTE[iso3],
+                alpha=0.85,
+                s=60,
+                zorder=3,
             )
         if len(vals) > 1:
             z = np.polyfit(vals, np.expm1(y), 1)
             xfit = np.linspace(vals.min(), vals.max(), 100)
             ax.plot(
-                xfit, np.polyval(z, xfit),
-                "k--", linewidth=1.2, alpha=0.6,
+                xfit,
+                np.polyval(z, xfit),
+                "k--",
+                linewidth=1.2,
+                alpha=0.6,
             )
         ax.set_xlabel(f"{pc} Value", fontsize=10)
         ax.set_ylabel("Outbound Migrants", fontsize=10)
@@ -429,10 +463,7 @@ def plot_partial_dependence_top_features(
     output_dir: Path = OUTPUT_DIR,
 ) -> Path:
     """Partial dependence for the top N original features by SHAP."""
-    print(
-        f"  [DM] Plotting partial dependence for top "
-        f"{n_features} features..."
-    )
+    print(f"  [DM] Plotting partial dependence for top {n_features} features...")
     output_dir = _ensure_output_dir(output_dir)
 
     top_feats = list(result.mean_shap.head(n_features).index)
@@ -452,10 +483,11 @@ def plot_partial_dependence_top_features(
         f"Partial Dependence: Top {actual_n} HAPI Features vs "
         f"Outbound Migration\n"
         "(Each point = one country-year, features lagged 1 year)",
-        fontweight="bold", fontsize=12,
+        fontweight="bold",
+        fontsize=12,
     )
 
-    for ax, feat in zip(axes.flat, top_feats):
+    for ax, feat in zip(axes.flat, top_feats, strict=False):
         feat_idx = result.feature_names.index(feat)
         vals = result.X_scaled[:, feat_idx]
 
@@ -464,16 +496,23 @@ def plot_partial_dependence_top_features(
             if mask.sum() == 0:
                 continue
             ax.scatter(
-                vals[mask], np.expm1(y[mask]),
-                label=NAME_MAP[iso3], color=PALETTE[iso3],
-                alpha=0.85, s=80, zorder=3,
+                vals[mask],
+                np.expm1(y[mask]),
+                label=NAME_MAP[iso3],
+                color=PALETTE[iso3],
+                alpha=0.85,
+                s=80,
+                zorder=3,
             )
         if len(vals) > 1:
             z = np.polyfit(vals, np.expm1(y), 1)
             xfit = np.linspace(vals.min(), vals.max(), 100)
             ax.plot(
-                xfit, np.polyval(z, xfit),
-                "k--", linewidth=1.2, alpha=0.6,
+                xfit,
+                np.polyval(z, xfit),
+                "k--",
+                linewidth=1.2,
+                alpha=0.6,
             )
         ax.set_xlabel(feat, fontsize=9)
         ax.set_ylabel("Outbound Migrants", fontsize=9)
@@ -495,6 +534,7 @@ def plot_partial_dependence_top_features(
 # ═════════════════════════════════════════════════════════════════════
 # DM-REQ-006: CSV EXPORTS
 # ═════════════════════════════════════════════════════════════════════
+
 
 def export_csv_results(
     analytics: AnalyticsBundle,
@@ -531,6 +571,7 @@ def export_csv_results(
 # DM-REQ-007: SUMMARY REPORT
 # ═════════════════════════════════════════════════════════════════════
 
+
 def print_summary(analytics: AnalyticsBundle) -> None:
     """Print a human-readable pipeline summary to console."""
     monthly = analytics.monthly_migration
@@ -544,15 +585,14 @@ def print_summary(analytics: AnalyticsBundle) -> None:
     print("=" * 60)
 
     print(
-        f"\n  Migration data:   {monthly.year_range}  |  "
-        f"{monthly.row_count:,} country-month rows"
+        f"\n  Migration data:   {monthly.year_range}  |  {monthly.row_count:,} country-month rows"
     )
     print(
         f"  Analysis panel:   {OVERLAP_YEAR_MIN} to {OVERLAP_YEAR_MAX}  |  "
         f"{len(bundle.primary_panel)} country-year rows (lag=1)"
     )
     print(f"  HAPI features:    {len(rf.feature_names)} indicators")
-    print(f"  Data source:      HDX HAPI (food security + food prices)")
+    print("  Data source:      HDX HAPI (food security + food prices)")
 
     print(f"\n  Correlations: {corr.summary()}")
     print(f"  Fixed Effects: {fe.summary()}")
@@ -561,7 +601,7 @@ def print_summary(analytics: AnalyticsBundle) -> None:
         f"\n  Random Forest:  Train R2={rf.train_r2:.3f}  |  "
         f"LOGO-CV R2={rf.cv_r2_mean:.3f} +/- {rf.cv_r2_std:.3f}"
     )
-    print(f"\n  Top SHAP drivers (HAPI feature space):")
+    print("\n  Top SHAP drivers (HAPI feature space):")
     for feat, val in rf.mean_shap.head(5).items():
         print(f"    {feat}: {val:.4f}")
 
@@ -569,6 +609,7 @@ def print_summary(analytics: AnalyticsBundle) -> None:
 # ═════════════════════════════════════════════════════════════════════
 # PUBLIC ENTRY POINT
 # ═════════════════════════════════════════════════════════════════════
+
 
 def run_design_module(analytics: AnalyticsBundle) -> None:
     """Execute the full Design Module pipeline."""
@@ -589,5 +630,5 @@ def run_design_module(analytics: AnalyticsBundle) -> None:
     export_csv_results(analytics)
     print_summary(analytics)
 
-    print(f"\n  [DM] Design Module complete.")
+    print("\n  [DM] Design Module complete.")
     print(f"  All outputs saved to: {OUTPUT_DIR}/")

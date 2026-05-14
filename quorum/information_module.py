@@ -30,51 +30,47 @@ from __future__ import annotations
 
 import json
 import time
-import pandas as pd
-import numpy as np
-import requests
 from pathlib import Path
-from typing import Dict, List, Optional
+
+import pandas as pd
+import requests
 
 from .config import (
-    MIGRATION_PATH,
     CA_ISO2,
     CA_ISO3,
-    ISO2_TO_ISO3,
-    LAG_YEARS,
-    PRIMARY_LAG,
-    OVERLAP_YEAR_MIN,
-    OVERLAP_YEAR_MAX,
-    HAPI_BASE_URL,
     HAPI_APP_ID,
+    HAPI_BASE_URL,
+    HAPI_CACHE_DIR,
+    HAPI_ENDPOINTS,
     HAPI_PAGE_LIMIT,
     HAPI_TIMEOUT,
-    HAPI_ENDPOINTS,
-    HAPI_CACHE_DIR,
-    IPC_PHASES_OF_INTEREST,
-    FEATURE_LABELS,
+    ISO2_TO_ISO3,
+    LAG_YEARS,
+    MIGRATION_PATH,
+    OVERLAP_YEAR_MAX,
+    OVERLAP_YEAR_MIN,
+    PRIMARY_LAG,
 )
-
 from .icd import (
-    MonthlyMigrationBlock,
     AnnualMigrationBlock,
-    FoodSecurityBlock,
     FoodPriceBlock,
+    FoodSecurityBlock,
     HAPIFeatureBlock,
     LaggedPanelBundle,
+    MonthlyMigrationBlock,
     validate_block,
 )
-
 
 # ═════════════════════════════════════════════════════════════════════
 # HAPI API CLIENT
 # ═════════════════════════════════════════════════════════════════════
 
+
 def _hapi_get(
     endpoint: str,
-    params: Optional[Dict] = None,
+    params: dict | None = None,
     use_cache: bool = True,
-) -> List[dict]:
+) -> list[dict]:
     """Generic paginated GET client for the HDX HAPI.
 
     Fetches all pages of results for the given endpoint and parameters.
@@ -106,7 +102,7 @@ def _hapi_get(
 
     if use_cache and cache_path.exists():
         print(f"       [CACHE HIT] {cache_path.name}")
-        with open(cache_path, "r") as f:
+        with open(cache_path) as f:
             return json.load(f)
 
     url = f"{HAPI_BASE_URL}{endpoint}"
@@ -124,9 +120,7 @@ def _hapi_get(
         }
 
         try:
-            resp = requests.get(
-                url, params=request_params, timeout=HAPI_TIMEOUT
-            )
+            resp = requests.get(url, params=request_params, timeout=HAPI_TIMEOUT)
             resp.raise_for_status()
         except requests.exceptions.ConnectionError as e:
             print(
@@ -143,7 +137,7 @@ def _hapi_get(
                 f"Try increasing HAPI_TIMEOUT in config.py."
             )
             return all_records
-        except requests.exceptions.HTTPError as e:
+        except requests.exceptions.HTTPError:
             print(
                 f"quorum_chat: API returned HTTP error for {endpoint}: "
                 f"{resp.status_code} {resp.reason}.\n"
@@ -159,10 +153,7 @@ def _hapi_get(
             break
 
         all_records.extend(data)
-        print(
-            f"       [API] Page {page}: {len(data)} records "
-            f"(total so far: {len(all_records)})"
-        )
+        print(f"       [API] Page {page}: {len(data)} records (total so far: {len(all_records)})")
 
         if len(data) < HAPI_PAGE_LIMIT:
             break
@@ -184,6 +175,7 @@ def _hapi_get(
 # ═════════════════════════════════════════════════════════════════════
 # IM-REQ-001: MIGRATION DATA INGESTION (unchanged from v1)
 # ═════════════════════════════════════════════════════════════════════
+
 
 def load_migration(path: Path = MIGRATION_PATH) -> MonthlyMigrationBlock:
     """Ingest raw Meta migration CSV and produce monthly migration panel.
@@ -255,18 +247,13 @@ def load_migration(path: Path = MIGRATION_PATH) -> MonthlyMigrationBlock:
 
     # Merge into unified monthly panel
     monthly = (
-        monthly_out
-        .merge(monthly_us, on=["iso3", "year", "month"], how="left")
+        monthly_out.merge(monthly_us, on=["iso3", "year", "month"], how="left")
         .merge(monthly_in, on=["iso3", "year", "month"], how="left")
         .fillna(0)
     )
-    monthly["net_outbound"] = (
-        monthly["outbound_total"] - monthly["inbound_total"]
-    )
+    monthly["net_outbound"] = monthly["outbound_total"] - monthly["inbound_total"]
     monthly["year_month"] = (
-        monthly["year"].astype(str)
-        + "-"
-        + monthly["month"].astype(str).str.zfill(2)
+        monthly["year"].astype(str) + "-" + monthly["month"].astype(str).str.zfill(2)
     )
 
     block = MonthlyMigrationBlock(data=monthly)
@@ -279,6 +266,7 @@ def load_migration(path: Path = MIGRATION_PATH) -> MonthlyMigrationBlock:
 # ═════════════════════════════════════════════════════════════════════
 # IM-REQ-001 (continued): ANNUAL AGGREGATION (unchanged)
 # ═════════════════════════════════════════════════════════════════════
+
 
 def build_annual_panel(
     monthly: MonthlyMigrationBlock,
@@ -308,6 +296,7 @@ def build_annual_panel(
 # ═════════════════════════════════════════════════════════════════════
 # IM-REQ-002: HAPI API DATA INGESTION (NEW in v2)
 # ═════════════════════════════════════════════════════════════════════
+
 
 def load_food_security_api(use_cache: bool = True) -> FoodSecurityBlock:
     """Fetch IPC food security data from HAPI for all CA countries.
@@ -353,15 +342,17 @@ def load_food_security_api(use_cache: bool = True) -> FoodSecurityBlock:
             frac = rec.get("population_fraction_in_phase")
 
             if year is not None and phase:
-                all_rows.append({
-                    "iso3": iso3,
-                    "year": year,
-                    "ipc_phase": phase,
-                    "population_in_phase": pop if pop else 0.0,
-                    "population_fraction_in_phase": frac if frac else 0.0,
-                    "reference_period_start": ref_start,
-                    "ipc_type": rec.get("ipc_type", ""),
-                })
+                all_rows.append(
+                    {
+                        "iso3": iso3,
+                        "year": year,
+                        "ipc_phase": phase,
+                        "population_in_phase": pop if pop else 0.0,
+                        "population_fraction_in_phase": frac if frac else 0.0,
+                        "reference_period_start": ref_start,
+                        "ipc_type": rec.get("ipc_type", ""),
+                    }
+                )
 
     df = pd.DataFrame(all_rows)
     if df.empty:
@@ -370,11 +361,17 @@ def load_food_security_api(use_cache: bool = True) -> FoodSecurityBlock:
             "Dry Corridor country. The pipeline will continue but "
             "food security features will be empty."
         )
-        df = pd.DataFrame(columns=[
-            "iso3", "year", "ipc_phase",
-            "population_in_phase", "population_fraction_in_phase",
-            "reference_period_start", "ipc_type",
-        ])
+        df = pd.DataFrame(
+            columns=[
+                "iso3",
+                "year",
+                "ipc_phase",
+                "population_in_phase",
+                "population_fraction_in_phase",
+                "reference_period_start",
+                "ipc_type",
+            ]
+        )
 
     block = FoodSecurityBlock(data=df)
     validate_block(block, "ICD-IM-003a: FoodSecurityBlock")
@@ -424,19 +421,21 @@ def load_food_prices_api(use_cache: bool = True) -> FoodPriceBlock:
 
             price = rec.get("price")
             if year is not None and price is not None:
-                all_rows.append({
-                    "iso3": iso3,
-                    "year": year,
-                    "commodity_name": rec.get("commodity_name", "Unknown"),
-                    "commodity_category": rec.get("commodity_category", ""),
-                    "price": float(price),
-                    "currency_code": rec.get("currency_code", ""),
-                    "unit": rec.get("unit", ""),
-                    "market_name": rec.get("market_name", ""),
-                    "price_type": rec.get("price_type", ""),
-                    "price_flag": rec.get("price_flag", ""),
-                    "reference_period_start": ref_start,
-                })
+                all_rows.append(
+                    {
+                        "iso3": iso3,
+                        "year": year,
+                        "commodity_name": rec.get("commodity_name", "Unknown"),
+                        "commodity_category": rec.get("commodity_category", ""),
+                        "price": float(price),
+                        "currency_code": rec.get("currency_code", ""),
+                        "unit": rec.get("unit", ""),
+                        "market_name": rec.get("market_name", ""),
+                        "price_type": rec.get("price_type", ""),
+                        "price_flag": rec.get("price_flag", ""),
+                        "reference_period_start": ref_start,
+                    }
+                )
 
     df = pd.DataFrame(all_rows)
     if df.empty:
@@ -445,11 +444,21 @@ def load_food_prices_api(use_cache: bool = True) -> FoodPriceBlock:
             "Dry Corridor country. The pipeline will continue but "
             "food price features will be empty."
         )
-        df = pd.DataFrame(columns=[
-            "iso3", "year", "commodity_name", "commodity_category",
-            "price", "currency_code", "unit", "market_name",
-            "price_type", "price_flag", "reference_period_start",
-        ])
+        df = pd.DataFrame(
+            columns=[
+                "iso3",
+                "year",
+                "commodity_name",
+                "commodity_category",
+                "price",
+                "currency_code",
+                "unit",
+                "market_name",
+                "price_type",
+                "price_flag",
+                "reference_period_start",
+            ]
+        )
 
     block = FoodPriceBlock(data=df)
     validate_block(block, "ICD-IM-003b: FoodPriceBlock")
@@ -461,6 +470,7 @@ def load_food_prices_api(use_cache: bool = True) -> FoodPriceBlock:
 # ═════════════════════════════════════════════════════════════════════
 # IM-REQ-002 (continued): MERGE HAPI FEATURES
 # ═════════════════════════════════════════════════════════════════════
+
 
 def merge_hapi_features(
     food_sec: FoodSecurityBlock,
@@ -502,9 +512,7 @@ def merge_hapi_features(
             fs.groupby(["iso3", "year", "ipc_phase"])
             .agg(
                 population_in_phase=("population_in_phase", "sum"),
-                population_fraction_in_phase=(
-                    "population_fraction_in_phase", "mean"
-                ),
+                population_fraction_in_phase=("population_fraction_in_phase", "mean"),
             )
             .reset_index()
         )
@@ -529,14 +537,12 @@ def merge_hapi_features(
         p3plus = fs_agg[fs_agg["ipc_phase"] == "3+"].copy()
         if not p3plus.empty:
             p3plus_yr = (
-                p3plus.groupby(["iso3", "year"])
-                ["population_in_phase"].sum()
+                p3plus.groupby(["iso3", "year"])["population_in_phase"]
+                .sum()
                 .reset_index()
                 .rename(columns={"population_in_phase": "IPC Phase 3+ Population"})
             )
-            frac_pivot = frac_pivot.merge(
-                p3plus_yr, on=["iso3", "year"], how="left"
-            )
+            frac_pivot = frac_pivot.merge(p3plus_yr, on=["iso3", "year"], how="left")
 
         frames.append(frac_pivot)
         print(f"       Food security: {len(frac_pivot)} country-years")
@@ -598,10 +604,11 @@ def merge_hapi_features(
 # IM-REQ-003 / IM-REQ-004: TEMPORAL ALIGNMENT AND MERGE
 # ═════════════════════════════════════════════════════════════════════
 
+
 def build_lagged_panels(
     annual_mig: AnnualMigrationBlock,
     features: HAPIFeatureBlock,
-    lag_years: List[int] = LAG_YEARS,
+    lag_years: list[int] = LAG_YEARS,
     primary_lag: int = PRIMARY_LAG,
     year_min: int = OVERLAP_YEAR_MIN,
     year_max: int = OVERLAP_YEAR_MAX,
@@ -626,9 +633,7 @@ def build_lagged_panels(
     """
     print("  [IM] Building lagged merge panels...")
 
-    overlap_mig = annual_mig.data[
-        annual_mig.data["year"].between(year_min, year_max)
-    ].copy()
+    overlap_mig = annual_mig.data[annual_mig.data["year"].between(year_min, year_max)].copy()
 
     if overlap_mig.empty:
         raise ValueError(
@@ -638,21 +643,20 @@ def build_lagged_panels(
         )
 
     migration_cols = [
-        "outbound_total", "outbound_to_us", "inbound_total",
-        "net_outbound", "peak_month_out",
+        "outbound_total",
+        "outbound_to_us",
+        "inbound_total",
+        "net_outbound",
+        "peak_month_out",
     ]
 
-    panels: Dict[int, pd.DataFrame] = {}
+    panels: dict[int, pd.DataFrame] = {}
     for lag in lag_years:
         feat_shifted = features.data.copy()
         feat_shifted["year"] = feat_shifted["year"] + lag
-        panel = overlap_mig.merge(
-            feat_shifted, on=["iso3", "year"], how="inner"
-        )
+        panel = overlap_mig.merge(feat_shifted, on=["iso3", "year"], how="inner")
         panels[lag] = panel
-        print(
-            f"       Lag {lag}: {len(panel)} rows x {panel.shape[1]} cols"
-        )
+        print(f"       Lag {lag}: {len(panel)} rows x {panel.shape[1]} cols")
 
     if not panels.get(primary_lag, pd.DataFrame()).shape[0]:
         print(
@@ -683,6 +687,7 @@ def build_lagged_panels(
 # ═════════════════════════════════════════════════════════════════════
 # PUBLIC ENTRY POINT
 # ═════════════════════════════════════════════════════════════════════
+
 
 def run_information_module(
     use_api_cache: bool = True,

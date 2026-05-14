@@ -52,7 +52,6 @@ Module data flow (v2)
 from __future__ import annotations
 
 import dataclasses as dc
-from typing import Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -60,15 +59,12 @@ import pandas as pd
 from .config import (
     CA_ISO3,
     FEATURE_LABELS,
-    LAG_YEARS,
-    OVERLAP_YEAR_MIN,
-    OVERLAP_YEAR_MAX,
 )
-
 
 # ═════════════════════════════════════════════════════════════════════
 # INFORMATION MODULE OUTPUT CONTRACTS
 # ═════════════════════════════════════════════════════════════════════
+
 
 @dc.dataclass
 class MonthlyMigrationBlock:
@@ -93,12 +89,17 @@ class MonthlyMigrationBlock:
     data: pd.DataFrame
 
     REQUIRED_COLUMNS = [
-        "iso3", "year", "month",
-        "outbound_total", "outbound_to_us", "inbound_total",
-        "net_outbound", "year_month",
+        "iso3",
+        "year",
+        "month",
+        "outbound_total",
+        "outbound_to_us",
+        "inbound_total",
+        "net_outbound",
+        "year_month",
     ]
 
-    def validate(self) -> List[str]:
+    def validate(self) -> list[str]:
         """Return list of validation errors. Empty list means contract met."""
         errors = []
 
@@ -161,12 +162,16 @@ class AnnualMigrationBlock:
     data: pd.DataFrame
 
     REQUIRED_COLUMNS = [
-        "iso3", "year",
-        "outbound_total", "outbound_to_us", "inbound_total",
-        "net_outbound", "peak_month_out",
+        "iso3",
+        "year",
+        "outbound_total",
+        "outbound_to_us",
+        "inbound_total",
+        "net_outbound",
+        "peak_month_out",
     ]
 
-    def validate(self) -> List[str]:
+    def validate(self) -> list[str]:
         errors = []
         missing = set(self.REQUIRED_COLUMNS) - set(self.data.columns)
         if missing:
@@ -178,15 +183,13 @@ class AnnualMigrationBlock:
         return f"{self.data['year'].min()} to {self.data['year'].max()}"
 
     def summary(self) -> str:
-        return (
-            f"AnnualMigrationBlock: {len(self.data)} rows, "
-            f"{self.year_range}"
-        )
+        return f"AnnualMigrationBlock: {len(self.data)} rows, {self.year_range}"
 
 
 # ─────────────────────────────────────────────────────────────────────
 # NEW v2: HAPI API DATA BLOCKS
 # ─────────────────────────────────────────────────────────────────────
+
 
 @dc.dataclass
 class FoodSecurityBlock:
@@ -208,11 +211,14 @@ class FoodSecurityBlock:
     data: pd.DataFrame
 
     REQUIRED_COLUMNS = [
-        "iso3", "year", "ipc_phase",
-        "population_in_phase", "population_fraction_in_phase",
+        "iso3",
+        "year",
+        "ipc_phase",
+        "population_in_phase",
+        "population_fraction_in_phase",
     ]
 
-    def validate(self) -> List[str]:
+    def validate(self) -> list[str]:
         errors = []
         missing = set(self.REQUIRED_COLUMNS) - set(self.data.columns)
         if missing:
@@ -230,10 +236,7 @@ class FoodSecurityBlock:
 
     def summary(self) -> str:
         n_countries = self.data["iso3"].nunique() if not self.data.empty else 0
-        return (
-            f"FoodSecurityBlock: {len(self.data)} rows, "
-            f"{n_countries} countries"
-        )
+        return f"FoodSecurityBlock: {len(self.data)} rows, {n_countries} countries"
 
 
 @dc.dataclass
@@ -259,10 +262,13 @@ class FoodPriceBlock:
     data: pd.DataFrame
 
     REQUIRED_COLUMNS = [
-        "iso3", "year", "commodity_name", "price",
+        "iso3",
+        "year",
+        "commodity_name",
+        "price",
     ]
 
-    def validate(self) -> List[str]:
+    def validate(self) -> list[str]:
         errors = []
         missing = set(self.REQUIRED_COLUMNS) - set(self.data.columns)
         if missing:
@@ -272,18 +278,14 @@ class FoodPriceBlock:
 
         if self.data.empty:
             errors.append(
-                "FoodPriceBlock contains no data. "
-                "Check HAPI API connectivity and country coverage."
+                "FoodPriceBlock contains no data. Check HAPI API connectivity and country coverage."
             )
 
         return errors
 
     def summary(self) -> str:
         n_countries = self.data["iso3"].nunique() if not self.data.empty else 0
-        return (
-            f"FoodPriceBlock: {len(self.data)} rows, "
-            f"{n_countries} countries"
-        )
+        return f"FoodPriceBlock: {len(self.data)} rows, {n_countries} countries"
 
 
 @dc.dataclass
@@ -306,7 +308,7 @@ class HAPIFeatureBlock:
 
     REQUIRED_COLUMNS = ["iso3", "year"]
 
-    def validate(self) -> List[str]:
+    def validate(self) -> list[str]:
         errors = []
         missing = set(self.REQUIRED_COLUMNS) - set(self.data.columns)
         if missing:
@@ -322,7 +324,7 @@ class HAPIFeatureBlock:
         return errors
 
     @property
-    def feature_columns(self) -> List[str]:
+    def feature_columns(self) -> list[str]:
         return [c for c in self.data.columns if c in FEATURE_LABELS]
 
     def summary(self) -> str:
@@ -337,6 +339,7 @@ class HAPIFeatureBlock:
 # LAGGED PANEL BUNDLE (unchanged interface, new data source)
 # ─────────────────────────────────────────────────────────────────────
 
+
 @dc.dataclass
 class LaggedPanelBundle:
     """ICD-IM-004: Collection of lagged merge panels.
@@ -349,13 +352,13 @@ class LaggedPanelBundle:
                  design_module (panel-level visualizations)
     """
 
-    panels: Dict[int, pd.DataFrame]
+    panels: dict[int, pd.DataFrame]
     primary_lag: int
-    feature_columns: List[str]
+    feature_columns: list[str]
     target_column: str
-    migration_columns: List[str]
+    migration_columns: list[str]
 
-    def validate(self) -> List[str]:
+    def validate(self) -> list[str]:
         errors = []
 
         if self.primary_lag not in self.panels:
@@ -370,9 +373,7 @@ class LaggedPanelBundle:
             if "year" not in panel.columns:
                 errors.append(f"Lag {lag} panel missing 'year'")
             if self.target_column not in panel.columns:
-                errors.append(
-                    f"Lag {lag} panel missing target '{self.target_column}'"
-                )
+                errors.append(f"Lag {lag} panel missing target '{self.target_column}'")
 
         return errors
 
@@ -384,9 +385,7 @@ class LaggedPanelBundle:
     def summary(self) -> str:
         lines = [f"LaggedPanelBundle (primary_lag={self.primary_lag}):"]
         for lag, panel in sorted(self.panels.items()):
-            lines.append(
-                f"  Lag {lag}: {len(panel)} rows x {panel.shape[1]} cols"
-            )
+            lines.append(f"  Lag {lag}: {len(panel)} rows x {panel.shape[1]} cols")
         lines.append(f"  Features: {len(self.feature_columns)}")
         lines.append(f"  Target: {self.target_column}")
         return "\n".join(lines)
@@ -395,6 +394,7 @@ class LaggedPanelBundle:
 # ═════════════════════════════════════════════════════════════════════
 # ANALYTICS MODULE OUTPUT CONTRACTS (unchanged)
 # ═════════════════════════════════════════════════════════════════════
+
 
 @dc.dataclass
 class CorrelationResult:
@@ -405,13 +405,18 @@ class CorrelationResult:
     total_count: int
 
     REQUIRED_COLUMNS = [
-        "Feature", "Lag (years)",
-        "Pearson_r", "Pearson_p",
-        "Spearman_r", "Spearman_p",
-        "N", "Sig_Pearson", "Sig_Spearman",
+        "Feature",
+        "Lag (years)",
+        "Pearson_r",
+        "Pearson_p",
+        "Spearman_r",
+        "Spearman_p",
+        "N",
+        "Sig_Pearson",
+        "Sig_Spearman",
     ]
 
-    def validate(self) -> List[str]:
+    def validate(self) -> list[str]:
         errors = []
         missing = set(self.REQUIRED_COLUMNS) - set(self.records.columns)
         if missing:
@@ -434,7 +439,7 @@ class FixedEffectsResult:
 
     REQUIRED_COLUMNS = ["Feature", "coef", "se", "p", "t", "R2", "N"]
 
-    def validate(self) -> List[str]:
+    def validate(self) -> list[str]:
         errors = []
         missing = set(self.REQUIRED_COLUMNS) - set(self.coefficients.columns)
         if missing:
@@ -460,12 +465,12 @@ class RandomForestResult:
     X_scaled: np.ndarray
     X_pca: np.ndarray
     pca_loadings: pd.DataFrame
-    feature_names: List[str]
+    feature_names: list[str]
     y_actual: np.ndarray
     y_predicted: np.ndarray
     countries: np.ndarray
 
-    def validate(self) -> List[str]:
+    def validate(self) -> list[str]:
         errors = []
         n_obs = self.shap_values_original.shape[0]
         if self.X_scaled.shape[0] != n_obs:
@@ -493,7 +498,7 @@ class AnalyticsBundle:
     panel_bundle: LaggedPanelBundle
     monthly_migration: MonthlyMigrationBlock
 
-    def validate(self) -> List[str]:
+    def validate(self) -> list[str]:
         errors = []
         errors.extend(self.correlations.validate())
         errors.extend(self.fixed_effects.validate())
@@ -503,17 +508,20 @@ class AnalyticsBundle:
         return errors
 
     def summary(self) -> str:
-        return "\n".join([
-            "AnalyticsBundle:",
-            f"  {self.correlations.summary()}",
-            f"  {self.fixed_effects.summary()}",
-            f"  {self.random_forest.summary()}",
-        ])
+        return "\n".join(
+            [
+                "AnalyticsBundle:",
+                f"  {self.correlations.summary()}",
+                f"  {self.fixed_effects.summary()}",
+                f"  {self.random_forest.summary()}",
+            ]
+        )
 
 
 # ═════════════════════════════════════════════════════════════════════
 # VALIDATION UTILITY
 # ═════════════════════════════════════════════════════════════════════
+
 
 def validate_block(block, block_name: str = "") -> None:
     """Run validation on any ICD block and raise if contract is violated.
@@ -526,6 +534,4 @@ def validate_block(block, block_name: str = "") -> None:
     if errors:
         label = block_name or type(block).__name__
         error_msg = "\n  ".join(errors)
-        raise ValueError(
-            f"quorum_chat: ICD validation failed for {label}:\n  {error_msg}"
-        )
+        raise ValueError(f"quorum_chat: ICD validation failed for {label}:\n  {error_msg}")
